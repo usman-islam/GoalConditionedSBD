@@ -21,14 +21,29 @@ def register_environments():
         entry_point='env.jaco.primitives.two_jaco_pick:TwoJacoPickEnv',
         kwargs={},
     )
+    # register(
+    #     id='two-jaco-push-v0',
+    #     entry_point='env.jaco.primitives.two_jaco_push:TwoJacoPushEnv',
+    #     kwargs={},
+    # )
     register(
         id='two-jaco-push-v0',
-        entry_point='env.jaco.primitives.two_jaco_push:TwoJacoPushEnv',
+        entry_point='env.jaco.primitives.two_jaco_push_gc:TwoJacoPushGCEnv',
+        kwargs={},
+    )
+    # register(
+    #     id='two-jaco-place-v0',
+    #     entry_point='env.jaco.primitives.two_jaco_place:TwoJacoPlaceEnv',
+    #     kwargs={},
+    # )
+    register(
+        id='two-jaco-place-v0',
+        entry_point='env.jaco.primitives.two_jaco_place_gc:TwoJacoPlaceGCEnv',
         kwargs={},
     )
     register(
-        id='two-jaco-place-v0',
-        entry_point='env.jaco.primitives.two_jaco_place:TwoJacoPlaceEnv',
+        id='two-jaco-move-v0',
+        entry_point='env.jaco.primitives.two_jaco_move:TwoJacoMoveEnv',
         kwargs={},
     )
     register(
@@ -39,6 +54,11 @@ def register_environments():
     register(
         id='two-jaco-bar-moving-v0',
         entry_point='env.jaco.composite.two_jaco_pmp:TwoJacoPickMovePlaceEnv',
+        kwargs={},
+    )
+    register(
+        id='mpe-simple',
+        entry_point='env.mpe.simple:MPESimpleEnv',
         kwargs={},
     )
 

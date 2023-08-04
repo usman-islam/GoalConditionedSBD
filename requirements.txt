@@ -6,7 +6,7 @@ ipdb==0.12.2
 jupyter==1.0.0
 moviepy==1.0.0
 mpi4py==3.0.2
-mujoco-py==2.0.2.5
+mujoco-py>=2.0.2.5
 opencv-python==4.1.0.25
 plotly==4.1.0
 pygame==1.9.6

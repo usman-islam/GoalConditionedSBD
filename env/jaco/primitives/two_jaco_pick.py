@@ -46,6 +46,9 @@ class TwoJacoPickEnv(TwoJacoEnv):
             "max_episode_steps": 100,
             "init_radius": 0.015,
             "diayn_reward": 0.01,
+            
+            
+            "move_target": [0.1, 0.1, 0.2]
         })
         self._env_config.update({ k:v for k,v in kwargs.items() if k in self._env_config })
 
@@ -143,14 +146,32 @@ class TwoJacoPickEnv(TwoJacoEnv):
 
             # in hand reward
             in_hand_rewards[i] = self._env_config['in_hand_reward'] if in_hands[i] else 0
+            
+            # target_distances_y = [
+            #     float(np.abs(cube1_pos[1] - self._env_config['move_target'][1])),
+            #     float(np.abs(cube2_pos[1] - self._env_config['move_target'][1]))
+            # ]
+            
+            # target_distances_xy = [
+            #     float(np.linalg.norm(cube1_pos[:2] - self._env_config['move_target'][:2])),
+            #     float(np.linalg.norm(cube2_pos[:2] - self._env_config['move_target'][:2]))
+            # ]
+            
+            target_distances = [
+                float(np.linalg.norm(cube1_pos - self._env_config['move_target'])),
+                float(np.linalg.norm(cube2_pos - self._env_config['move_target']))
+            ]
 
             # pick reward
             if in_hands[i] and in_air[i]:
                 if not count_success: pick_height = 0
                 capped_pick_height = min(pick_height, self._env_config['pick_height'])
-                pick_rewards[i] = self._env_config["pick_reward"] * capped_pick_height
+                # pick_rewards[i] = self._env_config["pick_reward"] * capped_pick_height
+                # pick_rewards[i] = -self._env_config["pick_reward"] * np.abs(self._env_config['pick_height'] - pick_height)
+                # pick_rewards[i] = self._env_config["pick_reward"] * (self._env_config['pick_height'] - np.linalg.norm(self._env_config['pick_height'] - pick_height))
+                pick_rewards[i] = -self._env_config["pick_reward"] * target_distances[i] + 40
 
-                if count_hold and pick_height > 0.12:
+                if count_hold and pick_height > 0.12 and target_distances[i] < 0.06:
                     self._hold_duration[i] += 1
                 if self._hold_duration[i] >= self._env_config['hold_duration']:
                     print('Cube {}: success pick!'.format(i + 1))

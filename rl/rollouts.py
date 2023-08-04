@@ -1,4 +1,4 @@
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 
 import numpy as np
 import torch
@@ -24,6 +24,13 @@ class Rollout(object):
         batch['ac_before_activation'] = self._history['ac_before_activation']
         batch['done'] = self._history['done']
         batch['rew'] = self._history['rew']
+        
+        # Goal data
+        batch['desired_goal'] = self._history['desired_goal']
+        batch['achieved_goal'] = self._history['achieved_goal']
+        
+        batch['info'] = self._history['info']
+        
         self._history = defaultdict(list)
         return batch
 
@@ -57,6 +64,28 @@ class RolloutRunner(object):
         self._env = env
         self._meta_pi = meta_pi
         self._pi = pi
+        
+    def find_goal_key(self, keys):
+        for key in keys:
+            if '_goal' in key:
+                return key
+        return None
+    
+    def process_ob_data(self, ob_data):
+        desired_goal, achieved_goal = None, None
+        if 'observation' in ob_data and 'desired_goal' in ob_data and 'achieved_goal' in ob_data:
+            goal_data = {self.find_goal_key(self._pi._ob_space.keys()): ob_data['desired_goal']}
+            ob = OrderedDict()
+            for item in ob_data['observation'].items():
+                if item[0] in self._env.ob_space:
+                    ob[item[0]] = item[1]
+            desired_goal = ob_data['desired_goal']
+            achieved_goal = ob_data['achieved_goal']
+            if self._config.goal_conditioned:
+                ob.update(goal_data)
+        else:
+            ob = ob_data
+        return ob, desired_goal, achieved_goal
 
     def run_episode(self, max_step=10000, is_train=True, record=False):
         """ Runs one episode and returns a rollout. """
@@ -74,7 +103,9 @@ class RolloutRunner(object):
         done = False
         ep_len = 0
         ep_rew = 0
-        ob = self._env.reset()
+        ob_data = self._env.reset()
+        ob, desired_goal, achieved_goal = self.process_ob_data(ob_data)
+
         if config.diayn and config.meta is None:
             sampled_z = pi._actors[0][0]._sample_z()
         else:
@@ -84,13 +115,11 @@ class RolloutRunner(object):
 
         # buffer to save qpos
         saved_qpos = []
-
         # run rollout
         meta_ac = None
         while not done and ep_len < max_step:
             curr_meta_ac, meta_ac_before_activation, meta_log_prob = \
                 meta_pi.act(ob, is_train=is_train)
-
             if meta_ac is None or (not config.fix_embedding):
                 meta_ac = curr_meta_ac
             else:
@@ -124,12 +153,26 @@ class RolloutRunner(object):
                     if sampled_z is not None:
                         ll_ob.update(sampled_z)
                     ac, ac_before_activation = pi.act(ll_ob, is_train=is_train)
+                rollout.add(
+                    {
+                        'ob': ll_ob,
+                        'meta_ac': meta_ac,
+                        'ac': ac,
+                        'ac_before_activation': ac_before_activation,
+                        'desired_goal': desired_goal,
+                        'achieved_goal': achieved_goal
+                    }
+                )
 
-                rollout.add({'ob': ll_ob, 'meta_ac': meta_ac, 'ac': ac, 'ac_before_activation': ac_before_activation})
                 saved_qpos.append(env.sim.get_state().qpos.copy())
+                ac = np.array(np.concatenate([ac[key] for key in ac.keys()]))
 
-                ob, reward, done, info = env.step(ac)
-
+                ob_data, reward, done, info = env.step(ac)
+                ob, desired_goal, achieved_goal = self.process_ob_data(ob_data)
+                
+                #info['episode_success'] = bool(env.task._check_success())
+                # print('ob in rollouts:', ob)
+                
                 # get discriminator output
                 if sampled_z is not None:
                     diayn_rew = 0
@@ -138,19 +181,21 @@ class RolloutRunner(object):
                             actor_discriminator_loss = _actor.discriminator_loss()
                             if actor_discriminator_loss is not None:
                                 diayn_rew += -actor_discriminator_loss.detach().cpu().item()
-                    diayn_rew *= self._env._env_config['diayn_reward']
+                    #diayn_rew *= self._env._env_config['diayn_reward']
+                    diayn_rew *= 0.01
                     reward += diayn_rew
                     info['diayn_rew'] = diayn_rew
 
+                rollout.add({'info': info})
                 rollout.add({'done': done, 'rew': reward})
                 acs.append(ac)
                 ep_len += 1
                 ep_rew += reward
                 meta_len += 1
                 meta_rew += reward
-
                 for key, value in info.items():
                     reward_info[key].append(value)
+
                 if record:
                     frame_info = info.copy()
                     if sampled_z is not None:
@@ -166,12 +211,17 @@ class RolloutRunner(object):
                     self._store_frame(frame_info)
 
             meta_rollout.add({'meta_done': done, 'meta_rew': meta_rew})
-
         # last frame
         ll_ob = ob.copy()
         if sampled_z is not None:
             ll_ob.update(sampled_z)
-        rollout.add({'ob': ll_ob, 'meta_ac': meta_ac})
+        rollout.add(
+            {
+                'ob': ll_ob,
+                'meta_ac': meta_ac,
+                'achieved_goal': achieved_goal,
+            }
+        )
         meta_rollout.add({'meta_ob': ob})
         saved_qpos.append(env.sim.get_state().qpos.copy())
 
@@ -183,7 +233,6 @@ class RolloutRunner(object):
                 else:
                     ep_info[key] = np.sum(value)
         ep_info['saved_qpos'] = saved_qpos
-
         return rollout.get(), meta_rollout.get(), ep_info, self._record_frames
 
     def _store_frame(self, info={}):
@@ -192,7 +241,9 @@ class RolloutRunner(object):
 
         text = "{:4} {}".format(self._env._episode_length,
                                 self._env._episode_reward)
+        self._env.render('rgb_array')
         frame = self._env.render('rgb_array') * 255.0
+        #frame = self._env.render() * 255.0
         fheight, fwidth = frame.shape[:2]
         frame = np.concatenate([frame, np.zeros((fheight, fwidth, 3))], 0)
 

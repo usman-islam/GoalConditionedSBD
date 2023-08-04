@@ -201,6 +201,7 @@ class BaseEnv(gym.Env):
         self._render_callback() # sim.forward()
 
         if mode == 'rgb_array':
+            # self._get_viewer()
             camera_obs = self.sim.render(camera_name=self._camera_name,
                                          width=self._screen_width,
                                          height=self._screen_height,

@@ -1,6 +1,7 @@
 <mujoco model="two_jaco_push">
     <include file="./common/two_jaco_macros.xml" />
     <worldbody>
+        <geom name="goal1" type="sphere" pos="0 0 0.86" size="0.02" rgba="1 0 0 0.5" />
         <include file="./common/two_jaco_arena.xml" />
         <body name="cube1" pos="0 0 0">
             <inertial pos="0 0 0" mass="1" diaginertia="0.0001296 0.0001296 0.0001296" />

@@ -81,7 +81,7 @@ class LowLevelAgent(SACAgent):
                     path = os.path.join(config.subdiv_skill_dir, skill)
                     ckpt_path, ckpt_num = get_ckpt_path(path, None)
                     logger.warn('Load skill checkpoint (%s) from (%s)', skill, ckpt_path)
-                    ckpt = torch.load(ckpt_path)
+                    ckpt = torch.load(ckpt_path, map_location=torch.device('cpu'))
 
                     if type(ckpt['agent']['actor_state_dict']) == OrderedDict:
                         # backward compatibility to older checkpoints
@@ -120,8 +120,7 @@ class LowLevelAgent(SACAgent):
                 else:
                     ac_, activation_ = self._actors[i][skill_idx].act(ob_, is_train)
                 ac.update(ac_)
-                activation.update(activation_)
-
+                activation.update(activation_) 
         return ac, activation
 
     def act_log(self, ob, meta_ac=None):
