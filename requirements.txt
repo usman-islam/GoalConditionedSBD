@@ -2,11 +2,11 @@ numpy==1.18.1
 colorlog==4.0.2
 gym==0.16.0
 h5py==2.9.0
-ipdb==0.12.2
+ipdb==0.13.13
 jupyter==1.0.0
 moviepy==1.0.0
 mpi4py==3.0.2
-mujoco-py>=2.0.2.5
+mujoco-py==2.0.2.5
 opencv-python==4.1.0.25
 plotly==4.1.0
 pygame==1.9.6

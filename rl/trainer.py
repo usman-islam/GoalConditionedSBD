@@ -12,7 +12,6 @@ import wandb
 import numpy as np
 import moviepy.editor as mpy
 from tqdm import tqdm, trange
-from matplotlib import pyplot as plt
 
 from rl.policies import get_actor_critic_by_name
 from rl.meta_ppo_agent import MetaPPOAgent
@@ -24,44 +23,19 @@ from env import make_env
 from env.action_spec import ActionSpec
 
 
-# from robosuite.controllers import load_controller_config
-# from robosuite.utils.input_utils import *
-# from robosuite.wrappers.gym_wrapper_notflat import GymWrapper
-
-import copy
-from collections import OrderedDict
-from gym import spaces
-
-from torchvision import models
-from torchsummary import summary
-
-def get_agent_by_name(algo, config, ob_space, ac_space, actor, critic, env):
+def get_agent_by_name(algo):
     """
-    Returns SAC or MRN agent.
+    Returns SAC agent.
     """
     if algo == 'sac':
         from rl.sac_agent import SACAgent
-        env.ob_space = ob_space
-        env.ac_space = ac_space
-        return SACAgent(config, ob_space, ac_space, actor, critic, env.compute_reward_for_her)
-    if algo == 'mrn':
-        from rl.mrn_agent import MRNAgent
-        env.ob_space = ob_space
-        env.ac_space = ac_space
-        return MRNAgent(config, env)
-    
-    
-def ob_ac_dims(ob_space, ac_space):
-    ob_dim = np.sum([item[1] for item in ob_space.items()])
-    ac_dim = np.sum([item[1] for item in ac_space.shape.items()])
-    return ob_dim, ac_dim
+        return SACAgent
 
 
 def get_subdiv_space(env, subdiv):
     """
     Returns observation and action space splited by agents.
     """
-    #init_lift_spaces(env)
     ob_space = env.observation_space
     ac_space = env.action_space
     assert isinstance(ob_space, OrderedDict)
@@ -88,21 +62,10 @@ def get_subdiv_space(env, subdiv):
 
     return ob_space, ac_space, clusters
 
-def init_lift_spaces(env):
-    observables = env._observables
-    ob_space_entries = []
-    for entry in list(observables.items()):
-        ob_space_entries.append((entry[0], entry[1]._current_observed_value.shape[0]))
-    env.observation_space = OrderedDict(ob_space_entries)
-    ac_decomposition = OrderedDict([('arm', 6), ('gripper', 2)])
-    ac_size = sum(ac_decomposition[key] for key in ac_decomposition.keys())
-    ac_space = ActionSpec(ac_size, -1, 1)
-    ac_space.decompose(ac_decomposition)
-    env.action_space = ac_space
 
 class Trainer(object):
     """
-    Trainer class for SAC, MRN and PPO in PyTorch.
+    Trainer class for SAC and PPO in PyTorch.
     """
 
     def __init__(self, config):
@@ -114,11 +77,7 @@ class Trainer(object):
 
         # create a new environment
         self._env = make_env(config.env, config)
-        #self._env = self.make_lift_env()
         ob_space, ac_space, clusters = get_subdiv_space(self._env, config.subdiv)
-
-        #print('ob space:', ob_space)
-        #print('ac space:', ac_space)
 
         # get actor and critic networks
         actor, critic = get_actor_critic_by_name(config.policy)
@@ -131,19 +90,13 @@ class Trainer(object):
                 config, ob_space, ac_space, actor, critic
             )
         else:
-            for cluster in clusters:
-                if config.goal_conditioned:
-                    ob_space[','.join(cluster[0]) + '_goal'] = config.goal_dim
-                if config.diayn:
+            if config.diayn:
+                for cluster in clusters:
                     ob_space[','.join(cluster[0]) + '_diayn'] = config.z_dim
-                    
-        
-            config.dim_goal   = config.goal_dim
-            config.max_action = float(ac_space.maximum)
-            config.max_episode_steps = self._env._env_config['max_episode_steps']
-            
-            config.dim_state, config.dim_action = ob_ac_dims(ob_space, ac_space)
-            self._agent = get_agent_by_name(config.algo, config, ob_space, ac_space, actor, critic, self._env)
+
+            self._agent = get_agent_by_name(config.algo)(
+                config, ob_space, ac_space, actor, critic
+            )
 
         # build rollout runner
         self._runner = RolloutRunner(
@@ -157,61 +110,18 @@ class Trainer(object):
                 os.environ['WANDB_MODE'] = 'dryrun'
 
             # WANDB user or team name
-            entity = "usman-islam-personal"
+            entity = "tianhongdai"
             # WANDB project name
             project = "subdiv"
-
+            # init wandb
             wandb.init(
                 resume=config.run_name,
                 project=project,
                 config={k: v for k, v in config.__dict__.items() if k not in exclude},
                 dir=config.log_dir,
                 entity=entity,
-                notes=config.notes,
-                group=config.run_name[:-1]
+                notes=config.notes
             )
-
-    # def make_lift_env(self):
-    #     dummy_env_kwargs = {
-    #         'env_name': 'CompositionalEnv',
-    #         'task': 'Lift',
-    #         'object_type': 'pot_with_handles',
-    #         'use_goal_obs': False,
-    #         'obstacle': None,
-    #         'robots': 'Jaco',
-    #         'controller_configs': load_controller_config(default_controller='JOINT_POSITION'),
-    #         'has_renderer': False,
-    #         'has_offscreen_renderer': False,
-    #         'reward_shaping': True,
-    #         'ignore_done': True,
-    #         'use_camera_obs': False,
-    #         'control_freq': 20,
-    #         'horizon': 500
-    #     }
-    #     env = suite.make(**dummy_env_kwargs)
-    #     return env
-
-    # def make_two_arm_lift_env(self):
-    #     dummy_env_kwargs = {
-    #         'env_name': 'CompositionalEnv',
-    #         'task': 'TwoArmLift',
-    #         'object_type': 'pot_with_handles',
-    #         'use_goal_obs': False,
-    #         'obstacle': None,
-    #         'robots': ['Jaco', 'Jaco'],
-    #         'env_configuration': 'single_arm_parallel',
-    #         'controller_configs': load_controller_config(default_controller='JOINT_POSITION'),
-    #         'has_renderer': False,
-    #         'has_offscreen_renderer': False,
-    #         'reward_shaping': True,
-    #         'ignore_done': True,
-    #         'use_camera_obs': False,
-    #         'control_freq': 20,
-    #         'horizon': 500
-    #     }
-    #     env = suite.make(**dummy_env_kwargs)
-    #     return env
-
 
     def _save_ckpt(self, ckpt_num, update_iter):
         """
@@ -304,27 +214,15 @@ class Trainer(object):
         """
         if self._config.is_train:
             for k, v in ep_info.items():
-                if k == 'saved_qpos':
-                    continue
-                wandb.log(
-                    {
-                        'test_ep/%s' % k: np.mean(v),
-                        'test_ep_upper/%s' % k: np.mean(v) + np.std(v),
-                        'test_ep_lower/%s' % k: np.mean(v) - np.std(v)
-                    },
-                    step=step
-                )
+                wandb.log({'test_ep/%s' % k: np.mean(v)}, step=step)
 
     def train(self):
-
         """ Trains an agent. """
         config = self._config
         num_batches = config.num_batches
 
         # load checkpoint
-        # TODO
-        # step, update_iter = self._load_ckpt()
-        step, update_iter = 0, 0
+        step, update_iter = self._load_ckpt()
 
         # sync the networks across the cpus
         self._agent.sync_networks()
@@ -347,45 +245,20 @@ class Trainer(object):
             run_ep_max = 1000
         elif self._config.algo == 'sac':
             run_step_max = 10000
-        elif self._config.algo == 'mrn':
-            run_step_max = 10000
 
         # dummy run for preventing weird error in a cold run
         self._runner.run_episode()
-        
-        logger.info('Prefilling buffer...')
-        for i in range(self._config.n_init_episodes):
-            rollout, _, _, _ = \
-                        self._runner.run_episode()
-            self._agent.store_episode(rollout)
-        logger.info('Finished prefilling buffer')
-
-        # self._agent.prefill_buffer()
 
         st_time = time()
         st_step = step
-
-        all_rewards = []
-        step_id_by_ep = []
-        ep_successes = []
-        eval_step_id_by_ep = []
-        eval_ep_successes = []
-        
-
         while step < config.max_global_step:
             run_ep = 0
             run_step = 0
             while run_step < run_step_max and run_ep < run_ep_max:
                 rollout, meta_rollout, info, _ = \
                     self._runner.run_episode()
-
                 run_step += info['len']
                 run_ep += 1
-
-                all_rewards.extend(rollout['rew'])
-                step_id_by_ep.append(step)
-                ep_successes.append(1 if info['episode_success'] else 0)
-
                 self._save_success_qpos(info)
                 logger.info('rollout: %s', {k: v for k, v in info.items() if not 'qpos' in k})
                 if config.meta:
@@ -447,75 +320,22 @@ class Trainer(object):
                     st_step = step
                     self._log_train(step, train_info, ep_info)
                     ep_info = defaultdict(list)
+
                 if update_iter % config.evaluate_interval == 0:
                     logger.info('Evaluate at %d', update_iter)
-                    # rollout, info = self._evaluate(step=step, record=config.record)
-                    
-                    info_history = defaultdict(list)
-                    for i in trange(self._config.num_eval):
-                        rollout, info = \
-                            self._evaluate(step=step, record=0 if i < self._config.num_eval - 1 else config.record, idx=i)
-                        for k, v in info.items():
-                            info_history[k].append(v)
+                    rollout, info = self._evaluate(step=step, record=config.record)
+                    self._log_test(step, info)
 
-                    eval_step_id_by_ep.append(step)
-                    eval_ep_successes.append(1 if info['episode_success'] else 0)
-
-                    # self._log_test(step, info)
-                    for k, v in info_history.items():
-                        info_history[k] = np.array(v)
-                    self._log_test(step, info_history)
-                    
-
-                # TODO
-                # if update_iter % config.ckpt_interval == 0:
-                #     self._save_ckpt(step, update_iter)
+                if update_iter % config.ckpt_interval == 0:
+                    self._save_ckpt(step, update_iter)
 
         logger.info('Reached %s steps. worker %d stopped.', step, config.rank)
-        np.save(os.path.join(config.results_progress_dir, 'all_rewards'), all_rewards)
-        np.save(os.path.join(config.results_progress_dir, 'step_id_by_ep'), step_id_by_ep)
-        np.save(os.path.join(config.results_progress_dir, 'ep_successes'), ep_successes)
-        np.save(os.path.join(config.results_progress_dir, 'eval_step_id_by_ep'), eval_step_id_by_ep)
-        np.save(os.path.join(config.results_progress_dir, 'eval_ep_successes'), eval_ep_successes)
-
-        all_rewards = np.array(all_rewards)
-        smooth_rewards = np.zeros(all_rewards.shape)
-        for i in range(len(smooth_rewards)):
-            smooth_rewards[i] = np.mean(all_rewards[i-500:i+500])
-
-        plt.figure()
-        plt.plot(all_rewards)
-        plt.xlabel('step')
-        plt.ylabel('reward')
-        plt.title('Training Rewards')
-        plt.savefig(os.path.join(config.plot_dir, 'train_rewards.jpg'))
-
-        plt.figure()
-        plt.plot(smooth_rewards)
-        plt.xlabel('step')
-        plt.ylabel('reward')
-        plt.title('Smoothed Training Rewards')
-        plt.savefig(os.path.join(config.plot_dir, 'smooth_train_rewards.jpg'))
-
-        plt.figure()
-        plt.plot(step_id_by_ep, ep_successes)
-        plt.xlabel('step')
-        plt.ylabel('success')
-        plt.title('Training Successes')
-        plt.savefig(os.path.join(config.plot_dir, 'train_successes.jpg'))
-
-        plt.figure()
-        plt.plot(eval_step_id_by_ep, eval_ep_successes)
-        plt.xlabel('step')
-        plt.ylabel('success')
-        plt.title('Evaluation Successes')
-        plt.savefig(os.path.join(config.plot_dir, 'eval_successes.jpg'))
 
     def _update_normalizer(self, rollout):
         """ Updates normalizer with @rollout. """
-        self._agent.update_normalizer(rollout)
         if self._config.ob_norm:
             self._meta_agent.update_normalizer(rollout['ob'])
+            self._agent.update_normalizer(rollout['ob'])
 
     def _save_success_qpos(self, info):
         """ Saves the final qpos of successful trajectory. """
@@ -546,13 +366,10 @@ class Trainer(object):
             record: whether to record video or not.
         """
         for i in range(self._config.num_record_samples):
-                    
-            print('trainer _evaluate getting frames')
             rollout, meta_rollout, info, frames = \
                 self._runner.run_episode(is_train=False, record=record)
 
             if record:
-                print('trainer _evaluate if record')
                 ep_rew = info['rew']
                 ep_success = 's' if info['episode_success'] else 'f'
                 fname = '{}_step_{:011d}_{}_r_{}_{}.mp4'.format(
@@ -602,7 +419,6 @@ class Trainer(object):
                 pickle.dump(rollouts, f)
 
     def _save_video(self, fname, frames, fps=15.):
-        print('**************************************************************************************************************************save video')
         """ Saves @frames into a video with file name @fname. """
         path = os.path.join(self._config.record_dir, fname)
 

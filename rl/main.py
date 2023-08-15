@@ -14,8 +14,6 @@ from rl.config import argparser
 from rl.trainer import Trainer
 from util.logger import logger
 
-from datetime import datetime
-
 
 np.set_printoptions(precision=3)
 np.set_printoptions(suppress=True)
@@ -30,8 +28,6 @@ def run(config):
     config.is_chef = rank == 0
     config.seed = config.seed + rank
     config.num_workers = MPI.COMM_WORLD.Get_size()
-    
-    config.goal_dim = 3
 
     if config.is_chef:
         logger.warn('Run a base worker.')
@@ -61,7 +57,6 @@ def run(config):
         os.environ["CUDA_VISIBLE_DEVICES"] = "{}".format(config.gpu)
         assert torch.cuda.is_available()
         config.device = torch.device("cuda")
-        config.cuda = True
     else:
         config.device = torch.device("cpu")
 
@@ -79,25 +74,18 @@ def make_log_files(config):
     """
     Sets up log directories and saves git diff and command line.
     """
-    log_dir_name = 'rl.{}.{}.{}'.format(config.env, config.prefix, config.seed)
-    config.run_name = '{}.{}'.format(log_dir_name, datetime.now().strftime("%m_%d_%Y_%H_%M_%S"))
+    config.run_name = 'rl.{}.{}.{}'.format(config.env, config.prefix, config.seed)
 
-    # config.log_dir = os.path.join(config.log_root_dir, config.run_name)
-    config.log_dir = os.path.join(config.log_root_dir, log_dir_name)
+    config.log_dir = os.path.join(config.log_root_dir, config.run_name)
     logger.info('Create log directory: %s', config.log_dir)
     os.makedirs(config.log_dir, exist_ok=True)
 
     if config.is_train:
         config.record_dir = os.path.join(config.log_dir, 'video')
-        config.results_progress_dir = os.path.join(config.log_dir, 'progress', f'seed_{config.seed}')
     else:
         config.record_dir = os.path.join(config.log_dir, 'eval_video')
-        config.results_progress_dir = os.path.join(config.log_dir, 'eval_progress', f'seed_{config.seed}')
-    config.plot_dir = os.path.join(config.results_progress_dir, 'plots')
     logger.info('Create video directory: %s', config.record_dir)
     os.makedirs(config.record_dir, exist_ok=True)
-    os.makedirs(config.results_progress_dir, exist_ok=True)
-    os.makedirs(config.plot_dir, exist_ok=True)
 
     if config.subdiv_skill_dir is None:
         config.subdiv_skill_dir = config.log_root_dir

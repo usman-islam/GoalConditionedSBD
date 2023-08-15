@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from rl.dataset import RandomSampler
+from rl.dataset import ReplayBuffer, RandomSampler
 from rl.base_agent import BaseAgent
 from util.logger import logger
 from util.mpi import mpi_average
@@ -16,25 +16,16 @@ from util.pytorch import optimizer_cuda, count_parameters, \
     compute_gradient_norm, compute_weight_norm, sync_networks, sync_grads, to_tensor
 from env.action_spec import ActionSpec
 
-# SBD buffer
-# from rl.dataset import ReplayBuffer
-
-# MRN buffer
-from mrn.src.replay_buffer import ReplayBuffer
-
-from mrn.src.sampler import Sampler
-
 
 class SACAgent(BaseAgent):
     """ SAC agent for primitive skill training. """
 
     def __init__(self, config, ob_space, ac_space,
-                 actor, critic, reward_func):
+                 actor, critic):
         super().__init__(config, ob_space)
 
         self._ob_space = ob_space
         self._ac_space = ac_space
-        self._config = config
 
         self._target_entropy = -ac_space.size
         self._log_alpha = torch.zeros(1, requires_grad=True, device=config.device)
@@ -55,25 +46,12 @@ class SACAgent(BaseAgent):
         self._actor_optims = [[optim.Adam(_actor.parameters(), lr=config.lr_actor) for _actor in _agent] for _agent in self._actors]
         self._critic1_optim = optim.Adam(self._critic1.parameters(), lr=config.lr_critic)
         self._critic2_optim = optim.Adam(self._critic2.parameters(), lr=config.lr_critic)
-        
-        self.counter = 0
-        self.prev_S = None
-        self.prev_info = None
-        self.prev_rew = None
 
-        # SBD buffer
-        # sampler = RandomSampler(ob_space, ac_space, reward_func, config)
-        # # buffer_keys = ['ob', 'ac', 'meta_ac', 'done', 'rew', 'desired_goal', 'achieved_goal', 'info']
-        # buffer_keys = ['ob', 'ac', 'meta_ac', 'done', 'rew', 'desired_goal', 'achieved_goal']
-        # self._buffer = ReplayBuffer(buffer_keys,
-        #                             config.buffer_size,
-        #                             sampler.sample_func)
-        
-        # MRN buffer
-        self.reward_func = reward_func
-        sampler = Sampler(config, reward_func)
-        sample_func = sampler.sample_ddpg_transitions_rew
-        self._buffer = ReplayBuffer(config, sample_func)
+        sampler = RandomSampler()
+        buffer_keys = ['ob', 'ac', 'meta_ac', 'done', 'rew']
+        self._buffer = ReplayBuffer(buffer_keys,
+                                    config.buffer_size,
+                                    sampler.sample_func)
 
         self._log_creation()
 
@@ -92,78 +70,8 @@ class SACAgent(BaseAgent):
         self._actors = [[actor(self._config, self._ob_space, self._ac_space,
                                self._config.tanh_policy)]] # num_body_parts, num_skills
 
-
-    # SBD buffer
-    # def store_episode(self, rollouts):
-    #     self._buffer.store_episode(rollouts)
-    
-    def store_episode(self, rollout):
-        S = np.array(rollout['ob'], dtype=object)
-        A = np.array(rollout['ac'], dtype=object)
-        AG = np.array(rollout['achieved_goal'], dtype=np.float32)
-        G = np.array(rollout['desired_goal'], dtype=np.float32)
-        R = np.array(rollout['rew'], dtype=np.float32)
-        info = np.array(rollout['info'], dtype=object)
-        done = np.array(rollout['done'], dtype=bool)
-        
-        S = np.expand_dims(S, axis=0)
-        A = np.expand_dims(A, axis=0)
-        AG = np.expand_dims(AG, axis=0)
-        G = np.expand_dims(G, axis=0)
-        R = np.expand_dims(R, axis=0)
-        info = np.expand_dims(info, axis=0)
-        done = np.expand_dims(done, axis=0)
-        
-        # epi_idx = 0
-        # t = np.array([2], dtype=np.int32)
-        # S_   =  S[epi_idx, t].copy() # (size, dim_state)
-        # A_   =  A[epi_idx, t].copy()
-        # AG_  = AG[epi_idx, t].copy()
-        # G_   =  G[epi_idx, t].copy()
-        # r_   =  R[epi_idx, t].copy()
-        # info_ = info[epi_idx, t].copy()
-        # done_ = done[epi_idx, t].copy()
-        # NS_  =  S[epi_idx, t+1].copy()
-        # NAG_ = AG[epi_idx, t+1].copy()
-        
-        
-        
-        
-        self._buffer.store_episode(S, A, AG, G, R, info, done)
-        
-        
-        
-        # prev_r = R[epi_idx, np.maximum(t-1, 0)].copy()
-        # prev_S = S[epi_idx, np.maximum(t-1, 0)].copy()
-        # prev_prev_S = S[epi_idx, np.maximum(t-2, 0)].copy()
-        # prev_NAG = AG[epi_idx, np.maximum(t, 0)].copy()
-        # prev_G = G[epi_idx, np.maximum(t-1, 0)].copy()
-        # prev_info = info[epi_idx, np.maximum(t-1, 0)].copy()
-        # prev_prev_info = info[epi_idx, np.maximum(t-2, 0)].copy()
-        # rew, _, _ = self.reward_func(NAG_, G_, None, prev_S, S_, info_, prev_info)
-        # prev_rew, _, _ = self.reward_func(prev_NAG, prev_G, None, prev_prev_S, prev_S, prev_info, prev_prev_info)
-        # reward_ctrl = np.array([elem['reward_ctrl'] for elem in info_], dtype=np.float)
-        # new_rew = rew - prev_rew + reward_ctrl
-        # # new_rew = rew
-        # R_ = np.expand_dims(new_rew, 1) # (size, 1)
-        # prev_R = np.expand_dims(prev_rew, 1) # (size, 1)
-        # # transitions = self._buffer.sample(256)
-        # # print('store ep sample R:', transitions['R'])
-        # rdiff = r_ - R_
-        # prev_rdiff = prev_r - prev_R
-        
-        # # print('r_:', r_)
-        # # print('R_:', R_)
-        # # print('r - R:', rdiff)
-        
-        # # print('prev_r:', prev_r)
-        # # print('prev_R:', prev_R)
-        # # print('prev_r - prev_R:', prev_rdiff)
-        # # if self.counter == 2:
-        # #     raise Exception()
-        # self.counter += 1
-        
-
+    def store_episode(self, rollouts):
+        self._buffer.store_episode(rollouts)
 
     def state_dict(self):
         return {
@@ -242,91 +150,26 @@ class SACAgent(BaseAgent):
         if meta_ac:
             raise NotImplementedError()
         return self._actors[0][0].act_log(ob)
-    
-    def _unwrap_from_buffer_format(self, batch, unwrapped_dim):
-        if isinstance(list(batch[0].items())[0][1], torch.Tensor):
-            unwrapped_batch = torch.zeros((len(batch), unwrapped_dim), dtype=torch.float32, device=self.args.device)
-        else:
-            unwrapped_batch = np.zeros((len(batch), unwrapped_dim), dtype=np.float32)
-        for i, ob in enumerate(batch):
-            dim_counter = 0
-            for item in ob.items():
-                sub_comp = item[1]
-                unwrapped_batch[i, dim_counter : dim_counter + len(sub_comp)] = sub_comp
-                dim_counter += len(sub_comp)
-        return unwrapped_batch
-    
-    def _wrap_to_sbd_format(self, batch, wrapped_shape):
-        dim_counter = 0
-        wrapped_batch = OrderedDict()
-        for item in wrapped_shape.items():
-            sub_comp_len = item[1]
-            wrapped_batch[item[0]] = batch[:, dim_counter : dim_counter + sub_comp_len]
-            dim_counter += sub_comp_len
-        return wrapped_batch
 
     def _update_network(self, transitions):
-        
-        
-        # SBD buffer
-        
-        # info = {}
-
-        # # pre-process observations
-        # o, o_next = transitions['ob'], transitions['ob_next']
-        # o = self.normalize(o)
-        # o_next = self.normalize(o_next)
-
-        # bs = len(transitions['done'])
-        # _to_tensor = lambda x: to_tensor(x, self._config.device)
-        # o = _to_tensor(o)
-        # o_next = _to_tensor(o_next)
-        # ac = _to_tensor(transitions['ac'])
-        # if self._config.meta:
-        #     meta_ac = _to_tensor(transitions['meta_ac'])
-        # else:
-        #     meta_ac = None
-        # done = _to_tensor(transitions['done']).reshape(bs, 1)
-        # rew = _to_tensor(transitions['rew']).reshape(bs, 1)
-        
-        
-        # MRN buffer
-        
-        o  = self._unwrap_from_buffer_format(transitions['S'], self._config.dim_state)
-        o_next = self._unwrap_from_buffer_format(transitions['NS'], self._config.dim_state)
-        ac  = self._unwrap_from_buffer_format(transitions['A'], self._config.dim_action)
-        meta_ac  = self._unwrap_from_buffer_format(transitions['A'], self._config.dim_action)
-        rew  = transitions['R']
-        done  = transitions['done']
-        
-        o  = self._wrap_to_sbd_format(o, self._ob_space)
-        o_next = self._wrap_to_sbd_format(o_next, self._ob_space)
-        ac  = self._wrap_to_sbd_format(ac, self._ac_space.shape)
-        meta_ac  = self._wrap_to_sbd_format(meta_ac, self._ac_space.shape)
-        
         info = {}
 
         # pre-process observations
-        # o, o_next = transitions['ob'], transitions['ob_next']
+        o, o_next = transitions['ob'], transitions['ob_next']
         o = self.normalize(o)
         o_next = self.normalize(o_next)
 
-        # bs = len(transitions['done'])
-        bs = len(done)
+        bs = len(transitions['done'])
         _to_tensor = lambda x: to_tensor(x, self._config.device)
         o = _to_tensor(o)
         o_next = _to_tensor(o_next)
-        # ac = _to_tensor(transitions['ac'])
-        ac = _to_tensor(ac)
+        ac = _to_tensor(transitions['ac'])
         if self._config.meta:
-            # meta_ac = _to_tensor(transitions['meta_ac'])
-            meta_ac = _to_tensor(meta_ac)
+            meta_ac = _to_tensor(transitions['meta_ac'])
         else:
             meta_ac = None
-        # done = _to_tensor(transitions['done']).reshape(bs, 1)
-        # rew = _to_tensor(transitions['rew']).reshape(bs, 1)
-        done = _to_tensor(done).reshape(bs, 1)
-        rew = _to_tensor(rew).reshape(bs, 1)
+        done = _to_tensor(transitions['done']).reshape(bs, 1)
+        rew = _to_tensor(transitions['rew']).reshape(bs, 1)
 
         # update alpha
         actions_real, log_pi = self.act_log(o, meta_ac=meta_ac)

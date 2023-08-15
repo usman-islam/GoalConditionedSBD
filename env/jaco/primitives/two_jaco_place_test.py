@@ -9,9 +9,9 @@ from env.jaco.two_jaco import TwoJacoEnv
 from env.transform_utils import quat_dist
 
 
-class TwoJacoPlaceEnvGC(TwoJacoEnv):
+class TwoJacoPlaceEnvTest(TwoJacoEnv):
     def __init__(self, **kwargs):
-        self.name = 'two-jaco-place-gc'
+        self.name = 'two-jaco-place-test'
         super().__init__('two_jaco_pick_gc.xml', **kwargs)
 
         # config
@@ -248,7 +248,11 @@ class TwoJacoPlaceEnvGC(TwoJacoEnv):
         #self._env_config['dest_pos'] = new_goal # 0.15
         new_goal1 = [0., 0.1, 0.86]
         new_goal2 = [0.3, -0.02, 0.86]
+        #new_goal = new_goal1 if np.random.rand() > 0.5 else new_goal2
+        #new_goal1 = [0., 0.1, 0.86]
         #new_goal1 = np.random.uniform(-0.05, 0.05, 3) + np.array(new_goal1)
+        #new_goal1 = new_goal1.tolist()
+        #new_goal2 = [0.3, -0.02, 0.86]
         new_goal = new_goal1 if np.random.rand() > 0.5 else new_goal2
         self._env_config['dest_pos'] = new_goal
         #self._env_config.update(
@@ -256,7 +260,9 @@ class TwoJacoPlaceEnvGC(TwoJacoEnv):
         #        'dest_pos': new_goal1
         #    }
         #)
-        # update the visualization goal position
+        #goal1_index = self.sim.model.geom_name2id("goal1")
+        #self.sim.model.geom_pos[goal1_index] = new_goal
+        #
         site_id = self.sim.model.site_name2id("goal1")
         self.sim.model.site_pos[site_id] = new_goal
         # min height 
@@ -270,10 +276,10 @@ class TwoJacoPlaceEnvGC(TwoJacoEnv):
         return ob
     
     def add_goals(self, ob):
-        # Let's discuss which part should be added in
-        # achieved_goals = np.array(self._get_pos('cube1'), dtype=np.float32) if self._env_config["train_left"] else np.array(self._get_pos('cube2'), dtype=np.float32)
+        #achieved_goals = np.array(self._get_pos('cube1'), dtype=np.float32) if self._env_config["train_left"] else np.array(self._get_pos('cube2'), dtype=np.float32)
         desired_goals = np.array(self._env_config['dest_pos'], dtype=np.float32)
-        # goals = np.concatenate([achieved_goals, desired_goals])
+        #goals = np.concatenate([achieved_goals, desired_goals])
+        #ob["right_arm"] = np.concatenate([ob["right_arm"], desired_goals])
         goals = desired_goals
         ob["goals"] = goals
         return ob

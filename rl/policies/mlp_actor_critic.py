@@ -6,8 +6,6 @@ import torch.nn as nn
 from rl.policies.utils import CNN, MLP
 from rl.policies.actor_critic import Actor, Critic
 
-import numpy as np
-
 
 class MlpActor(Actor):
     def __init__(self, config, ob_space, ac_space, tanh_policy):
@@ -17,8 +15,7 @@ class MlpActor(Actor):
 
         # observation
         input_dim = sum(ob_space.values())
-        #print('ob space mlp:', ob_space)
-        #print('in dim:', input_dim)
+
         self.fc = MLP(config, input_dim, config.rl_hid_size, [config.rl_hid_size])
         self.fc_means = nn.ModuleDict()
         self.fc_log_stds = nn.ModuleDict()
@@ -32,10 +29,7 @@ class MlpActor(Actor):
         inp = list(ob.values())
         if len(inp[0].shape) == 1:
             inp = [x.unsqueeze(0) for x in inp]
-        #print('mlp ob:', ob)
-        #print('inp:', inp)
-        #print('torch.cat(inp, dim=-1):', torch.cat(inp, dim=-1).shape)
-        #print('self.fc:', self.fc)
+
         out = self._activation_fn(self.fc(torch.cat(inp, dim=-1)))
         out = torch.reshape(out, (out.shape[0], -1))
 
