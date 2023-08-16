@@ -365,6 +365,7 @@ class Trainer(object):
             step: the number of environment steps.
             record: whether to record video or not.
         """
+        success = []
         for i in range(self._config.num_record_samples):
             rollout, meta_rollout, info, frames = \
                 self._runner.run_episode(is_train=False, record=record)
@@ -379,9 +380,11 @@ class Trainer(object):
 
             if idx is not None:
                 break
-
+            success_ = 1 if info['episode_success'] else 0
+            success.append(success_)
         logger.info('rollout: %s', {k: v for k, v in info.items() if not 'qpos' in k})
         self._save_success_qpos(info)
+        info["avg_success"] = np.mean(success)
         return rollout, info
 
     def evaluate(self):

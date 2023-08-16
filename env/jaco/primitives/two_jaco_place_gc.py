@@ -248,8 +248,12 @@ class TwoJacoPlaceEnvGC(TwoJacoEnv):
         #self._env_config['dest_pos'] = new_goal # 0.15
         new_goal1 = [0., 0.1, 0.86]
         new_goal2 = [0.3, -0.02, 0.86]
-        #new_goal1 = np.random.uniform(-0.05, 0.05, 3) + np.array(new_goal1)
-        new_goal = new_goal1 if np.random.rand() > 0.5 else new_goal2
+        #new_goal = np.random.uniform(-0.1, 0.1, 3) + np.array(new_goal1)
+        new_goal_x = np.random.uniform(0, 0.3)
+        new_goal_y = np.random.uniform(-0.02, 0.1)
+        new_goal = [new_goal_x, new_goal_y, 0.86]
+        #new_goal = new_goal1 if np.random.rand() > 0.5 else new_goal2
+        #new_goal = new_goal.tolist()
         self._env_config['dest_pos'] = new_goal
         #self._env_config.update(
         #    {
