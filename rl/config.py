@@ -9,6 +9,13 @@ def argparser():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
 
+    parser.add_argument("--goal_x_lower", type=float, default=0)
+    parser.add_argument("--goal_x_upper", type=float, default=0.5)
+    parser.add_argument("--goal_y_lower", type=float, default=-0.2)
+    parser.add_argument("--goal_y_upper", type=float, default=0.16)
+    parser.add_argument("--goal_z_lower", type=float, default=0.86)
+    parser.add_argument("--goal_z_upper", type=float, default=1.2)
+
     # environment
     parser.add_argument("--env", type=str, default="ant-push-v0",
                         help="Environment name")

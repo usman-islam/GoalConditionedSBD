@@ -29,7 +29,13 @@ class TwoJacoPlaceEnvGC(TwoJacoEnv):
             "dest_center": True, # set destination to center
             "ctrl_reward": 1e-4,
             "max_episode_steps": 100,
-            "init_qpos_dir": None
+            "init_qpos_dir": None,
+            "goal_x_lower": 0.0,
+            "goal_x_upper": 0.3,
+            "goal_y_lower": -0.1,
+            "goal_y_upper": 0.16,
+            "goal_z_lower": 0.86,
+            "goal_z_upper": 1.2
         })
         self._env_config.update({ k:v for k,v in kwargs.items() if k in self._env_config })
 
@@ -249,9 +255,16 @@ class TwoJacoPlaceEnvGC(TwoJacoEnv):
         new_goal1 = [0., 0.1, 0.86]
         new_goal2 = [0.3, -0.02, 0.86]
         #new_goal = np.random.uniform(-0.1, 0.1, 3) + np.array(new_goal1)
-        new_goal_x = np.random.uniform(0, 0.3)
-        new_goal_y = np.random.uniform(-0.02, 0.1)
-        new_goal = [new_goal_x, new_goal_y, 0.86]
+        xl = self._env_config['goal_x_lower']
+        xu = self._env_config['goal_x_upper']
+        yl = self._env_config['goal_y_lower']
+        yu = self._env_config['goal_y_upper']
+        zl = self._env_config['goal_z_lower']
+        zu = self._env_config['goal_z_upper']
+        new_goal_x = np.random.uniform(xl, xu)
+        new_goal_y = np.random.uniform(yl, yu)
+        new_goal_z = np.random.uniform(zl, zu)
+        new_goal = [new_goal_x, new_goal_y, new_goal_z]
         #new_goal = new_goal1 if np.random.rand() > 0.5 else new_goal2
         #new_goal = new_goal.tolist()
         self._env_config['dest_pos'] = new_goal

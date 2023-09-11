@@ -110,7 +110,7 @@ class Trainer(object):
                 os.environ['WANDB_MODE'] = 'dryrun'
 
             # WANDB user or team name
-            entity = "tianhongdai"
+            entity = "usman-islam-personal"
             # WANDB project name
             project = "subdiv"
             # init wandb
@@ -214,7 +214,14 @@ class Trainer(object):
         """
         if self._config.is_train:
             for k, v in ep_info.items():
-                wandb.log({'test_ep/%s' % k: np.mean(v)}, step=step)
+                if k == 'saved_qpos':
+                    continue
+                wandb.log(
+                    {
+                        'test_ep/%s' % k: np.mean(v)
+                    },
+                    step=step
+                )
 
     def train(self):
         """ Trains an agent. """
@@ -323,8 +330,19 @@ class Trainer(object):
 
                 if update_iter % config.evaluate_interval == 0:
                     logger.info('Evaluate at %d', update_iter)
-                    rollout, info = self._evaluate(step=step, record=config.record)
-                    self._log_test(step, info)
+                    # rollout, info = self._evaluate(step=step, record=config.record)
+                    
+                    info_history = defaultdict(list)
+                    for i in trange(self._config.num_eval):
+                        rollout, info = \
+                            self._evaluate(step=step, record=0 if i < self._config.num_eval - 1 else config.record, idx=i)
+                        for k, v in info.items():
+                            info_history[k].append(v)
+
+                    # self._log_test(step, info)
+                    for k, v in info_history.items():
+                        info_history[k] = np.array(v)
+                    self._log_test(step, info_history)
 
                 if update_iter % config.ckpt_interval == 0:
                     self._save_ckpt(step, update_iter)

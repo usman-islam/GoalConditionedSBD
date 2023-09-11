@@ -81,5 +81,11 @@ def make_env(name, config):
         env_config = str2dict(config.env_args)
     if config.init_qpos_dir is not None:
         env_config['init_qpos_dir'] = config.init_qpos_dir
+    env_config['goal_x_lower'] = config.goal_x_lower
+    env_config['goal_x_upper'] = config.goal_x_upper
+    env_config['goal_y_lower'] = config.goal_y_lower
+    env_config['goal_y_upper'] = config.goal_y_upper
+    env_config['goal_z_lower'] = config.goal_z_lower
+    env_config['goal_z_upper'] = config.goal_z_upper
     return gym.make(config.env, **env_config)
 

@@ -14,6 +14,7 @@ from rl.config import argparser
 from rl.trainer import Trainer
 from util.logger import logger
 
+from datetime import datetime
 
 np.set_printoptions(precision=3)
 np.set_printoptions(suppress=True)
@@ -74,9 +75,11 @@ def make_log_files(config):
     """
     Sets up log directories and saves git diff and command line.
     """
-    config.run_name = 'rl.{}.{}.{}'.format(config.env, config.prefix, config.seed)
+    log_dir_name = 'rl.{}.{}.{}'.format(config.env, config.prefix, config.seed)
+    config.run_name = '{}.{}'.format(log_dir_name, datetime.now().strftime("%m_%d_%Y_%H_%M_%S"))
 
-    config.log_dir = os.path.join(config.log_root_dir, config.run_name)
+    # config.log_dir = os.path.join(config.log_root_dir, config.run_name)
+    config.log_dir = os.path.join(config.log_root_dir, log_dir_name)
     logger.info('Create log directory: %s', config.log_dir)
     os.makedirs(config.log_dir, exist_ok=True)
 

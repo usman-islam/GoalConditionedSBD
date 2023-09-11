@@ -2,13 +2,16 @@
     <include file="./common/two_jaco_macros.xml" />
     <worldbody>
         <site name="goal1" type="sphere" pos="0 0 0.86" size="0.02" rgba="1 0 0 0.5" />
-        <site name="goal_space" type="box" pos="0.25 -0.02 1.03" size="0.25 0.18 0.17" rgba="0 1 0 0.5" />
+        <site name="goal_space" type="box" pos="0.3 0.0 0.95" size="0.3 0.3 0.15" rgba="0 1 0 0.5" />
         <include file="./common/two_jaco_arena.xml" />
         <body name="cube1" pos="0 0 0">
             <inertial pos="0 0 0" mass="0.216" diaginertia="0.0001296 0.0001296 0.0001296" />
             <joint name="cube1" type="free" armature="0" damping="0" limited="false" />
             <geom name="cube1" size="0.02 0.06 0.06" type="box" group="1" friction="1 1 0.0001" material="light-wood" />
             <site name="cube1" pos="0 0 0" size="0.002" material="light-wood" />
+            <sensor>
+                <rangefinder name="rangefinder1" site="cube1" cutoff="1"/>
+            </sensor>
         </body>
         <body name="cube2" pos="0 0 0">
             <inertial pos="0 0 0" mass="0.216" diaginertia="0.0001296 0.0001296 0.0001296" />
