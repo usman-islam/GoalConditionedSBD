@@ -31,8 +31,8 @@ class TwoJacoPlaceEnvGC(TwoJacoEnv):
             "max_episode_steps": 100,
             "init_qpos_dir": None,
             "goal_x_lower": 0.0,
-            "goal_x_upper": 0.3,
-            "goal_y_lower": -0.1,
+            "goal_x_upper": 0.5,
+            "goal_y_lower": -0.2,
             "goal_y_upper": 0.16,
             "goal_z_lower": 0.86,
             "goal_z_upper": 1.2

@@ -47,6 +47,11 @@ def register_environments():
         kwargs={},
     )
     register(
+        id='two-jaco-pick-push-place-gc-v0',
+        entry_point='env.jaco.composite.two_jaco_ppp_gc:TwoJacoPickPushPlaceEnv',
+        kwargs={},
+    )
+    register(
         id='two-jaco-bar-moving-v0',
         entry_point='env.jaco.composite.two_jaco_pmp:TwoJacoPickMovePlaceEnv',
         kwargs={},
@@ -87,5 +92,6 @@ def make_env(name, config):
     env_config['goal_y_upper'] = config.goal_y_upper
     env_config['goal_z_lower'] = config.goal_z_lower
     env_config['goal_z_upper'] = config.goal_z_upper
+    env_config['goal_dim'] = config.goal_dim
     return gym.make(config.env, **env_config)
 

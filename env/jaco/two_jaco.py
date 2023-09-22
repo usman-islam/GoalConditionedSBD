@@ -11,13 +11,15 @@ class TwoJacoEnv(BaseEnv):
 
         # env info
         if "gc" in xml_path:
-            self.ob_shape = OrderedDict([("right_arm", 9 + 9), ("left_arm", 9 + 9), ("right_hand", 7 + 6), ("left_hand", 7 + 6), ("cube1", 7 + 6), ("cube2", 7 + 6), ("goals", 3)])
+            self.ob_shape = OrderedDict([("right_arm", 9 + 9), ("left_arm", 9 + 9), ("right_hand", 7 + 6), ("left_hand", 7 + 6), ("cube1", 7 + 6), ("cube2", 7 + 6), ("goals", kwargs['goal_dim'])])
         else:
             self.ob_shape = OrderedDict([("right_arm", 9 + 9), ("left_arm", 9 + 9), ("right_hand", 7 + 6), ("left_hand", 7 + 6), ("cube1", 7 + 6), ("cube2", 7 + 6)])
         self.action_space.decompose(OrderedDict([("right_arm", 9), ("left_arm", 9)]))
 
         # env config
         self._env_config.update({
+#            "init_pos_l": [0.3, 0.3, 0.86],
+#            "init_pos_r": [0.3, -0.3, 0.86],
             "init_pos_l": [0.3, 0.2, 0.86],
             "init_pos_r": [0.3, -0.2, 0.86],
             "init_radius": 0,

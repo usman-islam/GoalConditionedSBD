@@ -19,6 +19,7 @@ class Actor(nn.Module):
         self._config = config
         self._activation_fn = getattr(torch.nn, config.activation)()
         self._tanh = tanh_policy
+        self.ob_space = ob_space
 
         # modules for DIAYN
         diayn = [k for k in ob_space.keys() if '_diayn' in k]
@@ -71,7 +72,7 @@ class Actor(nn.Module):
 
         for k in self._ac_space.keys():
             z = activations[k]
-            if self._tanh and self._ac_space.is_continuous(k):
+            if (self._tanh or 'goals' in k) and self._ac_space.is_continuous(k):
                 action = torch.tanh(z)
                 if return_log_prob:
                     # follow the Appendix C. Enforcing Action Bounds
@@ -119,7 +120,7 @@ class Actor(nn.Module):
 
         for k in self._ac_space.keys():
             z = activations_[k]
-            if self._tanh and self._ac_space.is_continuous(k):
+            if (self._tanh or 'goals' in k) and self._ac_space.is_continuous(k):
                 action = torch.tanh(z)
                 # follow the Appendix C. Enforcing Action Bounds
                 log_det_jacobian = 2 * (np.log(2.) - z - F.softplus(-2. * z)).sum(dim=-1, keepdim=True)

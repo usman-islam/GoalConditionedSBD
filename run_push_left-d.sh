@@ -12,4 +12,4 @@
 
 seed=2
 
-python3 -m rl.main --record 0 --is_train 1 --seed $seed --env two-jaco-push-v0 --gpu 0 --num_record_samples 1 --prefix left-d --subdiv left_arm,left_hand,cube1-left_arm --env_args train_left-True/train_right-False --discriminator_loss_weight 10 --save_qpos True --max_global_step 300000
+python3 -m rl.main --record 1 --is_train 0 --seed $seed --env two-jaco-push-v0 --gpu 0 --num_record_samples 1 --prefix left-d --subdiv left_arm,left_hand,cube1-left_arm --env_args train_left-True/train_right-False --discriminator_loss_weight 10 --save_qpos True --max_global_step 300000

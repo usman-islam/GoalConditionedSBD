@@ -6,12 +6,14 @@ from rl.normalizer import Normalizer
 class BaseAgent(object):
     """ Base class for agents. """
 
+    # def __init__(self, config, ob_space, ob_norm):
     def __init__(self, config, ob_space):
         self._config = config
 
+        # self._ob_norm = ob_norm
         self._ob_norm = Normalizer(ob_space,
-                                   default_clip_range=config.clip_range,
-                                   clip_obs=config.clip_obs)
+                                    default_clip_range=config.clip_range,
+                                    clip_obs=config.clip_obs)
 
     def normalize(self, ob):
         """ Normalizes observations. """

@@ -9,12 +9,15 @@ def argparser():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
 
+    # goals
     parser.add_argument("--goal_x_lower", type=float, default=0)
     parser.add_argument("--goal_x_upper", type=float, default=0.5)
     parser.add_argument("--goal_y_lower", type=float, default=-0.2)
     parser.add_argument("--goal_y_upper", type=float, default=0.16)
     parser.add_argument("--goal_z_lower", type=float, default=0.86)
     parser.add_argument("--goal_z_upper", type=float, default=1.2)
+    parser.add_argument("--goal_dim", type=int, default=3)
+    parser.add_argument("--plan_goals", type=str2bool, default=True)
 
     # environment
     parser.add_argument("--env", type=str, default="ant-push-v0",
@@ -78,6 +81,8 @@ def argparser():
                         help="List of primitive skills for each agent")
     parser.add_argument("--subdiv_skill_dir", type=str, default=None,
                         help="Path to the primitive skill checkpoints")
+    parser.add_argument("--primitive_subdiv", type=str, default=None,
+                        help="Subdivision of observation and action space for primitives (for meta-policy runs)")
 
     # training
     parser.add_argument("--is_train", type=str2bool, default=True)
@@ -111,7 +116,7 @@ def argparser():
     # log
     parser.add_argument("--log_interval", type=int, default=1)
     parser.add_argument("--evaluate_interval", type=int, default=100)
-    parser.add_argument("--ckpt_interval", type=int, default=200)
+    parser.add_argument("--ckpt_interval", type=int, default=300)
     parser.add_argument("--log_root_dir", type=str, default="log")
     parser.add_argument('--wandb', type=str2bool, default=False,
                         help="set it True if you want to use wandb")

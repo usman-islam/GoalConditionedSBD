@@ -16,6 +16,8 @@ from tqdm import tqdm, trange
 from rl.policies import get_actor_critic_by_name
 from rl.meta_ppo_agent import MetaPPOAgent
 from rl.rollouts import RolloutRunner
+from rl.low_level_agent import LowLevelAgent
+from rl.normalizer import Normalizer
 from util.logger import logger
 from util.pytorch import get_ckpt_path, count_parameters
 from util.mpi import mpi_sum
@@ -83,19 +85,46 @@ class Trainer(object):
         actor, critic = get_actor_critic_by_name(config.policy)
 
         # build up networks
+        ob_norm = Normalizer(
+            ob_space,
+            default_clip_range=config.clip_range,
+            clip_obs=config.clip_obs
+        )
+        # self._meta_agent = MetaPPOAgent(config, ob_space, ob_norm)
         self._meta_agent = MetaPPOAgent(config, ob_space)
         if config.meta:
-            from rl.low_level_agent import LowLevelAgent
+            
+            primitive_ob_spaces = []
+            primitive_ac_spaces = []
+            for cluster_subdiv in self._config.primitive_subdiv.split('/'):
+                cluster_ob_spaces = []
+                cluster_ac_spaces = []
+                for skill_subdiv in cluster_subdiv.split('*'):
+                    primitive_ob_space, primitive_ac_space, _ = get_subdiv_space(self._env, skill_subdiv)
+                    cluster_ob_spaces.append(primitive_ob_space)
+                    cluster_ac_spaces.append(primitive_ac_space)
+                primitive_ob_spaces.append(cluster_ob_spaces)
+                primitive_ac_spaces.append(cluster_ac_spaces)
+            
             self._agent = LowLevelAgent(
-                config, ob_space, ac_space, actor, critic
+                # config, ob_space, ac_space, actor, critic
+                config, primitive_ob_spaces, primitive_ac_spaces, actor, critic
             )
         else:
             if config.diayn:
                 for cluster in clusters:
                     ob_space[','.join(cluster[0]) + '_diayn'] = config.z_dim
 
+
+            ob_norm = Normalizer(
+                ob_space,
+                default_clip_range=config.clip_range,
+                clip_obs=config.clip_obs
+            )
+
             self._agent = get_agent_by_name(config.algo)(
                 config, ob_space, ac_space, actor, critic
+                # config, ob_space, ac_space, ob_norm, actor, critic
             )
 
         # build rollout runner
@@ -353,7 +382,12 @@ class Trainer(object):
         """ Updates normalizer with @rollout. """
         if self._config.ob_norm:
             self._meta_agent.update_normalizer(rollout['ob'])
+            
             self._agent.update_normalizer(rollout['ob'])
+            # if isinstance(self._agent, LowLevelAgent):
+            #     self._agent.update_normalizer(rollout['ob'], rollout['meta_ac'])
+            # else:
+            #     self._agent.update_normalizer(rollout['ob'])
 
     def _save_success_qpos(self, info):
         """ Saves the final qpos of successful trajectory. """

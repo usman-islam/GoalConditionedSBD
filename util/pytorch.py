@@ -1,6 +1,7 @@
 import os
 import io
 from glob import glob
+import collections
 from collections import OrderedDict, defaultdict
 
 import numpy as np

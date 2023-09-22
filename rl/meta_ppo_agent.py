@@ -17,6 +17,8 @@ from env.action_spec import ActionSpec
 class MetaPPOAgent(BaseAgent):
     """ Meta policy class. """
 
+    # def __init__(self, config, ob_space, ob_norm):
+    #     super().__init__(config, ob_space, ob_norm)
     def __init__(self, config, ob_space):
         super().__init__(config, ob_space)
 
@@ -46,12 +48,18 @@ class MetaPPOAgent(BaseAgent):
             ac_space = ActionSpec(size=0)
             for cluster, skills in zip(clusters, subdiv_skills):
                 ac_space.add(','.join(cluster), 'discrete', len(skills), 0, 1)
+                if config.plan_goals and 'right_arm' in cluster:
+                    ac_space.add(','.join(cluster) + '_goals', 'continuous', config.goal_dim, -1, 1)
             self.ac_space = ac_space
 
+        # if config.diayn:
+        #     ob_clusters = config.subdiv.split('/')
+        #     ob_clusters = [cluster.split('-')[0].split(',') for cluster in ob_clusters]
+        #     for cluster, skills in zip(ob_clusters, subdiv_skills):
+        #         self.ac_space.add(','.join(cluster) + '_diayn', 'continuous', config.z_dim, 0, 1)
+        
         if config.diayn:
-            ob_clusters = config.subdiv.split('/')
-            ob_clusters = [cluster.split('-')[0].split(',') for cluster in ob_clusters]
-            for cluster, skills in zip(ob_clusters, subdiv_skills):
+            for cluster, skills in zip(clusters, subdiv_skills):
                 self.ac_space.add(','.join(cluster) + '_diayn', 'continuous', config.z_dim, 0, 1)
 
         # build up networks
@@ -228,13 +236,17 @@ class MetaPPOAgent(BaseAgent):
 
         return mpi_average(info)
 
-    def act(self, ob, is_train=True):
+    def act(self, ob, is_train=True, ep_length=0):
         """
         Returns a set of actions and the actors' activations given an observation @ob.
         """
         if self._config.meta:
             ob = self.normalize(ob)
-            return self._actor.act(ob, is_train, return_log_prob=True)
+            res = self._actor.act(ob, is_train, return_log_prob=True)
+            # for item in res:
+            #     if isinstance(item, dict) and 'right_arm' in item:
+            #         item['right_arm'][0] = 0 if ep_length < 10 else 1
+            return res
         else:
             return [0], None, None
 

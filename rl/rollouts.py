@@ -89,7 +89,7 @@ class RolloutRunner(object):
         meta_ac = None
         while not done and ep_len < max_step:
             curr_meta_ac, meta_ac_before_activation, meta_log_prob = \
-                meta_pi.act(ob, is_train=is_train)
+                meta_pi.act(ob, is_train=is_train, ep_length=ep_len)
 
             if meta_ac is None or (not config.fix_embedding):
                 meta_ac = curr_meta_ac
@@ -158,7 +158,7 @@ class RolloutRunner(object):
                     if config.meta:
                         frame_info['meta_ac'] = []
                         for i, k in enumerate(meta_ac.keys()):
-                            if not k.endswith('diayn'):
+                            if not (k.endswith('diayn') or k.endswith('goals')):
                                 frame_info['meta_ac'].append(meta_pi.subdiv_skills[i][int(meta_ac[k])])
                             else:
                                 frame_info[k] = meta_ac[k]
@@ -183,7 +183,6 @@ class RolloutRunner(object):
                 else:
                     ep_info[key] = np.sum(value)
         ep_info['saved_qpos'] = saved_qpos
-
         return rollout.get(), meta_rollout.get(), ep_info, self._record_frames
 
     def _store_frame(self, info={}):

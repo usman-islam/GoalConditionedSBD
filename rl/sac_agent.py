@@ -20,8 +20,19 @@ from env.action_spec import ActionSpec
 class SACAgent(BaseAgent):
     """ SAC agent for primitive skill training. """
 
+    # def __init__(
+    #         self,
+    #         config,
+    #         ob_space,
+    #         ac_space,
+    #         ob_norm,
+    #         actor,
+    #         critic
+    #     ):
+    #     super().__init__(config, ob_space, ob_norm)
+    
     def __init__(self, config, ob_space, ac_space,
-                 actor, critic):
+                  actor, critic):
         super().__init__(config, ob_space)
 
         self._ob_space = ob_space
